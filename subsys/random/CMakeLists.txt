@@ -18,8 +18,11 @@ endif()
 zephyr_library_sources_ifdef(CONFIG_TIMER_RANDOM_GENERATOR          random_timer.c)
 zephyr_library_sources_ifdef(CONFIG_XOSHIRO_RANDOM_GENERATOR        random_xoshiro128.c)
 zephyr_library_sources_ifdef(CONFIG_CTR_DRBG_CSPRNG_GENERATOR       random_ctr_drbg.c)
-zephyr_library_sources_ifdef(CONFIG_ARM64_RANDOM_GENERATOR          random_arm64.c)
 zephyr_library_sources_ifdef(CONFIG_TEST_CSPRNG_GENERATOR           random_test_csprng.c)
+
+if(CONFIG_ARM64_RANDOM_GENERATOR OR CONFIG_ARM64_CSPRNG)
+zephyr_library_sources(random_arm64.c)
+endif()
 
 if(CONFIG_ENTROPY_DEVICE_RANDOM_GENERATOR OR CONFIG_HARDWARE_DEVICE_CS_GENERATOR)
 zephyr_library_sources(random_entropy_device.c)

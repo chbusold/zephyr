@@ -8,6 +8,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
+#ifdef CONFIG_ARM64_RANDOM_GENERATOR
 void z_impl_sys_rand_get(void *dst, size_t outlen)
 {
 	uint8_t *_dst = (uint8_t *)dst;
@@ -17,11 +18,11 @@ void z_impl_sys_rand_get(void *dst, size_t outlen)
 		unsigned long value;
 
 		if (__builtin_aarch64_rndr(&value) != 0) {
-			if (++failure_counter > CONFIG_ARM64_RANDOM_GENERATOR_MAX_RETRIES) {
+			if (++failure_counter > CONFIG_ARM64_RNG_MAX_RETRIES) {
 				__ASSERT_PRINT("ARM64 RNDR keeps failing\n");
 				k_panic();
 			}
-			k_msleep(CONFIG_ARM64_RANDOM_GENERATOR_RETRY_WAIT_MSEC);
+			k_msleep(CONFIG_ARM64_RNG_RETRY_WAIT_MSEC);
 		} else {
 			size_t to_copy = MIN(outlen, sizeof(value));
 
@@ -32,3 +33,32 @@ void z_impl_sys_rand_get(void *dst, size_t outlen)
 		}
 	}
 }
+#endif
+
+#ifdef CONFIG_ARM64_CSPRNG
+int z_impl_sys_csrand_get(void *dst, size_t outlen)
+{
+	uint8_t *_dst = (uint8_t *)dst;
+	int failure_counter = 0;
+
+	while (outlen > 0) {
+		unsigned long value;
+
+		if (__builtin_aarch64_rndrrs(&value) != 0) {
+			if (++failure_counter > CONFIG_ARM64_RNG_MAX_RETRIES) {
+				return -ENODATA;
+			}
+			k_msleep(CONFIG_ARM64_RNG_RETRY_WAIT_MSEC);
+		} else {
+			size_t to_copy = MIN(outlen, sizeof(value));
+
+			memcpy(_dst, &value, to_copy);
+			_dst += to_copy;
+			outlen -= to_copy;
+			failure_counter = 0;
+		}
+	}
+
+	return 0;
+}
+#endif

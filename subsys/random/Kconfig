@@ -40,6 +40,7 @@ choice RNG_GENERATOR_CHOICE
 	prompt "Random generator"
 	default ENTROPY_DEVICE_RANDOM_GENERATOR if ENTROPY_HAS_DRIVER && !ENTROPY_NEEDS_PRNG
 	default XOSHIRO_RANDOM_GENERATOR if ENTROPY_HAS_DRIVER && ENTROPY_NEEDS_PRNG
+	default ARM64_RANDOM_GENERATOR if ARM64_RNG
 	default TIMER_RANDOM_GENERATOR if TEST_RANDOM_GENERATOR
 	depends on ENTROPY_HAS_DRIVER || TEST_RANDOM_GENERATOR || ARM64_RNG
 	help
@@ -83,25 +84,6 @@ config ARM64_RANDOM_GENERATOR
 
 endchoice # RNG_GENERATOR_CHOICE
 
-if ARM64_RANDOM_GENERATOR
-
-config ARM64_RANDOM_GENERATOR_MAX_RETRIES
-	int "Maximum number of retries for ARM64 random generator"
-	default 10
-	help
-	  Maximum number of consecutive RNDR instruction failures after which the
-	  random generator gives up. Since we cannot return error, we panic the
-	  kernel.
-
-config ARM64_RANDOM_GENERATOR_RETRY_WAIT_MSEC
-	int "Retry wait time for ARM64 random generator"
-	default 10
-	help
-	  Number of milliseconds generator should wait before retrying after RNDR
-	  instruction failure.
-
-endif # ARM64_RANDOM_GENERATOR
-
 DT_CHOSEN_Z_ENTROPY := zephyr,entropy
 config ENTROPY_NODE_ENABLED
 	bool
@@ -138,7 +120,7 @@ config CSPRNG_NEEDED
 config CSPRNG_ENABLED
 	bool
 	default y
-	depends on ENTROPY_HAS_DRIVER
+	depends on ENTROPY_HAS_DRIVER || ARM64_RNG
 	help
 	  Helper to confirm that there is an hardware entropy unit enabled in the build
 	  that can be used to provide CS random values.
@@ -146,7 +128,8 @@ config CSPRNG_ENABLED
 
 choice CSPRNG_GENERATOR_CHOICE
 	prompt "Cryptographically secure random generator"
-	default HARDWARE_DEVICE_CS_GENERATOR
+	default ARM64_CSPRNG if ARM64_RNG
+	default HARDWARE_DEVICE_CS_GENERATOR if ENTROPY_HAS_DRIVER
 	default TEST_CSPRNG_GENERATOR
 	help
 	  Platform dependent cryptographically secure random number support.
@@ -193,6 +176,13 @@ config TEST_CSPRNG_GENERATOR
 	  Route calls to `sys_csrand_get` through `sys_rand_get` to enable
 	  libraries that use the former to be tested with ZTEST.
 
+config ARM64_CSPRNG
+	bool "Use ARM64 CSPRNG"
+	depends on ARM64_RNG
+	help
+	  Enables the cryptographically secure pseudo-random number generator based
+	  on the RNDRRS instruction from the ARM extension FEAT_RNG.
+
 endchoice # CSPRNG_GENERATOR_CHOICE
 
 config CS_CTR_DRBG_PERSONALIZATION
@@ -202,5 +192,24 @@ config CS_CTR_DRBG_PERSONALIZATION
 	help
 	  This option is deprecated (no longer needed) and will be
 	  removed in further release.
+
+if ARM64_RANDOM_GENERATOR || ARM64_CSPRNG
+
+config ARM64_RNG_MAX_RETRIES
+	int "Maximum number of retries for ARM64 RNG"
+	default 10
+	help
+	  Maximum number of consecutive failures after which the generator should
+	  abort. Since (non-CS) PRNG cannot return error, it will panic the kernel
+	  instead.
+
+config ARM64_RNG_RETRY_WAIT_MSEC
+	int "Retry wait time for ARM64 RNG"
+	default 5
+	help
+	  Number of milliseconds generator should wait before retrying after
+	  failure.
+
+endif # ARM64_RANDOM_GENERATOR || ARM64_CSPRNG
 
 endmenu
