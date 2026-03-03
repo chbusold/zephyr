@@ -49,7 +49,7 @@ config ETH_NATIVE_TAP_PTP_CLOCK
 
 config ETH_NATIVE_TAP_RANDOM_MAC
 	bool "Random MAC address"
-	depends on ENTROPY_GENERATOR
+	depends on HAS_RANDOM_GENERATOR
 	default y
 	help
 	  Generate a random MAC address dynamically.
