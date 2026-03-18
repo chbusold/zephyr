@@ -509,6 +509,20 @@ void __weak z_early_rand_get(uint8_t *buf, size_t length)
 	}
 #endif /* CONFIG_ENTROPY_HAS_DRIVER */
 
+#ifdef CONFIG_ARM64_RANDOM_GENERATOR
+	while (length > 0) {
+		unsigned long value;
+
+		if (__builtin_aarch64_rndr(&value) == 0) {
+			size_t to_copy = MIN(length, sizeof(value));
+
+			arch_early_memcpy(buf, &value, to_copy);
+			buf += to_copy;
+			length -= to_copy;
+		}
+	}
+#endif /* CONFIG_ARM64_RANDOM_GENERATOR */
+
 	while (length > 0) {
 		uint32_t val;
 
