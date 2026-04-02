@@ -32,6 +32,10 @@
 #include <zephyr/llext/symbol.h>
 #include <zephyr/sys/iterable_sections.h>
 
+#ifdef CONFIG_COMMON_LIBC_MALLOC_TLS
+#include <sys_malloc.h>
+#endif /* CONFIG_COMMON_LIBC_MALLOC_TLS */
+
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 #ifdef CONFIG_OBJ_CORE_THREAD
@@ -703,6 +707,9 @@ char *z_setup_new_thread(struct k_thread *new_thread,
 	new_thread->base.prio_deadline = 0;
 #endif /* CONFIG_SCHED_DEADLINE */
 	new_thread->resource_pool = _current->resource_pool;
+#ifdef CONFIG_COMMON_LIBC_MALLOC_TLS
+	new_thread->local_heap = NULL;
+#endif /* CONFIG_COMMON_LIBC_MALLOC_TLS */
 
 #ifdef CONFIG_SMP
 	z_waitq_init(&new_thread->halt_queue);
@@ -1365,3 +1372,19 @@ void z_dummy_thread_init(struct k_thread *dummy_thread)
 
 	z_current_thread_set(dummy_thread);
 }
+
+#ifdef CONFIG_COMMON_LIBC_MALLOC_TLS
+struct sys_heap_local *z_impl_k_thread_local_heap_get(struct k_thread *thread)
+{
+	return thread->local_heap;
+}
+
+#ifdef CONFIG_USERSPACE
+static inline struct sys_heap_local *z_vrfy_k_thread_local_heap_get(struct k_thread *thread)
+{
+	K_OOPS(K_SYSCALL_OBJ(thread, K_OBJ_THREAD));
+	return z_impl_k_thread_local_heap_get(thread);
+}
+#include <zephyr/syscalls/k_thread_local_heap_get_mrsh.c>
+#endif /* CONFIG_USERSPACE */
+#endif /* CONFIG_COMMON_LIBC_MALLOC_TLS */

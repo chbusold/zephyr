@@ -11,6 +11,10 @@
 #include <zephyr/kernel/mm/demand_paging.h>
 #endif /* CONFIG_DEMAND_PAGING_THREAD_STATS */
 
+#ifdef CONFIG_COMMON_LIBC_MALLOC_TLS
+#include <sys_malloc.h>
+#endif /* CONFIG_COMMON_LIBC_MALLOC_TLS */
+
 #include <zephyr/kernel/stats.h>
 #include <zephyr/arch/arch_interface.h>
 
@@ -355,6 +359,10 @@ struct k_thread {
 #endif /* CONFIG_USE_SWITCH */
 	/** resource pool */
 	struct k_heap *resource_pool;
+
+#ifdef CONFIG_COMMON_LIBC_MALLOC_TLS
+	struct sys_heap_local *local_heap;
+#endif /* CONFIG_COMMON_LIBC_MALLOC_TLS */
 
 #if defined(CONFIG_THREAD_LOCAL_STORAGE)
 	/* Pointer to arch-specific TLS area */
