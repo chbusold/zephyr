@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019 Intel Corporation
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,16 +22,13 @@ extern "C" {
 #endif
 
 #ifdef CONFIG_USERSPACE
+#include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/types.h>
 #include <zephyr/sys_clock.h>
 
 struct sys_mutex {
-	/* Currently unused, but will be used to store state for fast mutexes
-	 * that can be locked/unlocked with atomic ops if there is no
-	 * contention
-	 */
-	atomic_t val;
+	struct k_futex futex;
 };
 
 /**
@@ -51,7 +49,9 @@ struct sys_mutex {
  * @param name Name of the mutex.
  */
 #define SYS_MUTEX_DEFINE(name) \
-	struct sys_mutex name
+	struct sys_mutex name = { \
+		.futex = { 0 }, \
+	}; \
 
 /**
  * @brief Initialize a mutex.
@@ -65,19 +65,7 @@ struct sys_mutex {
  *
  * @param mutex Address of the mutex.
  */
-static inline void sys_mutex_init(struct sys_mutex *mutex)
-{
-	ARG_UNUSED(mutex);
-
-	/* Nothing to do, kernel-side data structures are initialized at
-	 * boot
-	 */
-}
-
-__syscall int z_sys_mutex_kernel_lock(struct sys_mutex *mutex,
-				      k_timeout_t timeout);
-
-__syscall int z_sys_mutex_kernel_unlock(struct sys_mutex *mutex);
+void sys_mutex_init(struct sys_mutex *mutex);
 
 /**
  * @brief Lock a mutex.
@@ -99,11 +87,7 @@ __syscall int z_sys_mutex_kernel_unlock(struct sys_mutex *mutex);
  * @retval -EACCES Caller has no access to provided mutex address
  * @retval -EINVAL Provided mutex not recognized by the kernel
  */
-static inline int sys_mutex_lock(struct sys_mutex *mutex, k_timeout_t timeout)
-{
-	/* For now, make the syscall unconditionally */
-	return z_sys_mutex_kernel_lock(mutex, timeout);
-}
+int sys_mutex_lock(struct sys_mutex *mutex, k_timeout_t timeout);
 
 /**
  * @brief Unlock a mutex.
@@ -122,13 +106,7 @@ static inline int sys_mutex_lock(struct sys_mutex *mutex, k_timeout_t timeout)
  *                 locked
  * @retval -EPERM Caller does not own the mutex
  */
-static inline int sys_mutex_unlock(struct sys_mutex *mutex)
-{
-	/* For now, make the syscall unconditionally */
-	return z_sys_mutex_kernel_unlock(mutex);
-}
-
-#include <zephyr/syscalls/mutex.h>
+int sys_mutex_unlock(struct sys_mutex *mutex);
 
 #else
 #include <zephyr/kernel.h>
